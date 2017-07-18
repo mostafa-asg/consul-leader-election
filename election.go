@@ -10,18 +10,15 @@ var kv *api.KVPair
 var session string
 
 type Interface interface {
+
 	TakeLeadership(authority *LeadershipAuthority)
 	GiveUpLeadership()
+
 }
 
-func TryTakingLeadership(config *Config, leader Interface) {
+func TryTakingLeadership(config *Config , leader Interface){
 
-	consulConfig := api.DefaultConfig()
-	if consulConfig.Address != "" {
-		consulConfig.Address = config.Address
-	}
-
-	consulClient, _ = api.NewClient(consulConfig)
+	consulClient , _ = api.NewClient( api.DefaultConfig() )
 
 	sessionEnt := &api.SessionEntry{
 		Name:     "masterElectionSession",
@@ -41,28 +38,25 @@ func TryTakingLeadership(config *Config, leader Interface) {
 	for {
 		ok, _, _ := consulClient.KV().Acquire(kv, nil)
 		if ok {
-			leader.TakeLeadership(new(LeadershipAuthority))
-			go checkLeadershipStatus(leader, config)
+			leader.TakeLeadership( new(LeadershipAuthority) )
+			go checkLeadershipStatus(leader,config)
 			break
 		} else {
-			consulClient.Session().Destroy(session, nil)
-			session, _, _ = consulClient.Session().Create(sessionEnt, nil)
-			kv.Session = session
+			time.Sleep(config.WatchWaitTime * time.Second)
 		}
-
-		time.Sleep(config.WatchWaitTime * time.Second)
 	}
 
 }
 
-func checkLeadershipStatus(leader Interface, config *Config) {
+func checkLeadershipStatus(leader Interface , config *Config) {
 
 	for {
 
 		ok, _, _ := consulClient.KV().Acquire(kv, nil)
 
 		if !ok {
-			leader.GiveUpLeadership()
+			println("** dige leader nist **")
+			go leader.GiveUpLeadership()
 			break
 		}
 
@@ -71,3 +65,6 @@ func checkLeadershipStatus(leader Interface, config *Config) {
 	}
 
 }
+
+
+
